@@ -1,6 +1,9 @@
+dist
+dist-*
 doc/_build/
 scripts/
 samples/
 test-servers/
 /doc/
 .stack-work/
+.venv/
