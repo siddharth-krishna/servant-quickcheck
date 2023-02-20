@@ -169,6 +169,15 @@ instance (ReflectMethod method)
        })
 
 instance (ReflectMethod method)
+    => HasGenRequest (UVerb (method :: StdMethod) (cts :: [*]) (as :: [*])) where
+    genRequest _ = (1, return $ \burl -> defaultRequest
+       { host = cs $ baseUrlHost burl
+       , port = baseUrlPort burl
+       , secure = baseUrlScheme burl == Https
+       , method = reflectMethod (Proxy :: Proxy method)
+       })
+
+instance (ReflectMethod method)
     => HasGenRequest (NoContentVerb (method :: k)) where
     genRequest _ = (1, return $ \burl -> defaultRequest
        { host = cs $ baseUrlHost burl

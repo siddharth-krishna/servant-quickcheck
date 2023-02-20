@@ -34,33 +34,33 @@ library
     Servant.QuickCheck.Internal.QuickCheck
 
   build-depends:
-      aeson                  >=0.8    && <2
-    , base                   >=4.9    && <4.15
-    , base-compat-batteries  >=0.10.1 && <0.12
-    , bytestring             >=0.10   && <0.11
-    , case-insensitive       >=1.2    && <1.3
-    , clock                  >=0.7    && <0.9
-    , data-default-class     >=0.0    && <0.2
-    , hspec                  >=2.5.6  && <2.8
-    , http-client            >=0.4.30 && <0.8
-    , http-media             >=0.6    && <0.9
-    , http-types             >=0.8    && <0.13
-    , mtl                    >=2.1    && <2.3
-    , pretty                 >=1.1    && <1.2
-    , process                >=1.2    && <1.7
-    , QuickCheck             >=2.7    && <2.15
-    , servant                >=0.17   && <0.19
-    , servant-client         >=0.17   && <0.19
-    , servant-server         >=0.17   && <0.19
-    , split                  >=0.2    && <0.3
-    , string-conversions     >=0.3    && <0.5
-    , temporary              >=1.2    && <1.4
-    , text                   >=1      && <2
-    , time                   >=1.5    && <1.11
-    , warp                   >=3.2.4  && <3.4
+      aeson
+    , base
+    , base-compat-batteries
+    , bytestring
+    , case-insensitive
+    , clock
+    , data-default-class
+    , hspec
+    , http-client >= 0.6.4 && < 0.7
+    , http-media
+    , http-types
+    , mtl
+    , pretty
+    , process
+    , QuickCheck
+    , servant
+    , servant-client
+    , servant-server
+    , split
+    , string-conversions
+    , temporary
+    , text
+    , time
+    , warp
 
   if !impl(ghc >=8.0)
-    build-depends: semigroups >=0.18.3 && <0.20
+    build-depends: semigroups
 
   hs-source-dirs:     src
   default-extensions:
@@ -98,7 +98,7 @@ test-suite spec
     , blaze-html
     , bytestring
     , hspec
-    , hspec-core             >=2.5.5 && <2.8
+    , hspec-core
     , http-client
     , QuickCheck
     , quickcheck-io
