@@ -127,12 +127,17 @@ test-suite example
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   hs-source-dirs:   example
-  ghc-options:      -Wall
+  ghc-options:      -Wall -threaded -with-rtsopts=-N
   build-depends:
       base
+    , async
     , hspec
+    -- , pqc -- NOTE use my fork
+    , QuickCheck
     , servant-quickcheck
     , servant-server
     , text
+    , wai-logger
+    , warp
 
   default-language: Haskell2010
