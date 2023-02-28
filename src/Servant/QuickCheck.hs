@@ -63,6 +63,8 @@ module Servant.QuickCheck
   -- | Helpers to setup and teardown @servant@ servers during tests.
   , withServantServer
   , withServantServerAndContext
+  , withServantServerAndSettings
+  , withServantServerContextAndSettings
   , defaultArgs
 
   -- ** Re-exports

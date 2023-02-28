@@ -7,7 +7,7 @@ import           Control.Monad            (unless)
 import qualified Data.ByteString.Lazy     as LBS
 import           Data.Proxy               (Proxy)
 import qualified Network.HTTP.Client      as C
-import           Network.Wai.Handler.Warp (withApplication)
+import           Network.Wai.Handler.Warp (Settings, defaultSettings, withApplicationSettings)
 import           Prelude.Compat
 import           Servant                  (Context (EmptyContext), HasServer,
                                            Server, serveWithContext)
@@ -46,8 +46,22 @@ withServantServerAndContext :: (HasServer a ctx, HasContextEntry (ctx .++ Defaul
 withServantServerAndContext :: HasServer a ctx
 #endif
   => Proxy a -> Context ctx -> IO (Server a) -> (BaseUrl -> IO r) -> IO r
-withServantServerAndContext api ctx server t
-  = withApplication (return . serveWithContext api ctx =<< server) $ \port ->
+withServantServerAndContext api ctx
+  = withServantServerContextAndSettings api ctx defaultSettings
+
+withServantServerAndSettings :: HasServer a '[] => Proxy a -> Settings -> IO (Server a)
+  -> (BaseUrl -> IO r) -> IO r
+withServantServerAndSettings api settings
+  = withServantServerContextAndSettings api EmptyContext settings
+
+#if MIN_VERSION_servant_server(0,18,0)
+withServantServerContextAndSettings :: (HasServer a ctx, HasContextEntry (ctx .++ DefaultErrorFormatters) ErrorFormatters)
+#else
+withServantServerContextAndSettings :: HasServer a ctx
+#endif
+  => Proxy a -> Context ctx -> Settings -> IO (Server a) -> (BaseUrl -> IO r) -> IO r
+withServantServerContextAndSettings api ctx settings server t
+  = withApplicationSettings settings (return . serveWithContext api ctx =<< server) $ \port ->
       t (BaseUrl Http "localhost" port "")
 
 -- | Check that the two servers running under the provided @BaseUrl@s behave
