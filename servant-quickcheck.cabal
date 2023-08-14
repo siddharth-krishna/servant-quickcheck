@@ -127,15 +127,19 @@ test-suite example
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   hs-source-dirs:   example
-  ghc-options:      -Wall -threaded -with-rtsopts=-N
+  ghc-options:      -Wall -Wunused-packages -threaded -with-rtsopts=-N
   build-depends:
       base
+    , containers
     , async
     , hspec
+    , http-client
     -- , pqc -- NOTE use my fork
     , QuickCheck
     , servant-quickcheck
     , servant-server
+    , servant-client
+    , string-conversions
     , text
     , wai-logger
     , warp
