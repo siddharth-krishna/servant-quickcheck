@@ -130,7 +130,7 @@ test-suite example
   ghc-options:      -Wall -Wunused-packages -threaded -with-rtsopts=-N
   build-depends:
       base
-    , containers
+    -- , containers
     , async
     , hspec
     , http-client
@@ -139,9 +139,9 @@ test-suite example
     , servant-quickcheck
     , servant-server
     , servant-client
-    , string-conversions
-    , text
-    , wai-logger
+    -- , string-conversions
+    -- , text
+    -- , wai-logger
     , warp
 
   default-language: Haskell2010
