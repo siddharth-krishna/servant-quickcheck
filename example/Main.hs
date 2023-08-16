@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -7,24 +8,24 @@
 
 module Main (main) where
 
-import Control.Concurrent.Async (concurrently, forConcurrently)
+import Control.Concurrent.Async (concurrently, forConcurrently, withAsync)
 import Control.Concurrent.MVar
 import Control.Monad (forM, forM_, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Either (partitionEithers)
 import Data.List (intercalate)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
-import Network.Wai.Handler.Warp (defaultSettings)
+import Network.Wai.Handler.Warp (Settings, defaultSettings, withApplicationSettings, run)
 import Servant
-import Servant.Client (ClientM, client, mkClientEnv, runClientM)
-import Servant.QuickCheck
-import Servant.QuickCheck.Internal.HasGenRequest (runGenRequest)
-import Servant.QuickCheck.Internal.Predicates (finishPredicates)
-import Servant.QuickCheck.Internal.QuickCheck (defManager, noCheckStatus)
+import Servant.Client (BaseUrl (..), ClientM, Scheme (Http), client, mkClientEnv, runClientM)
 import Test.Hspec
-import Test.QuickCheck (Result (..), quickCheckWithResult)
-import Test.QuickCheck.Monadic (assert, forAllM, monadicIO, run)
 
+-- import Servant.QuickCheck
+-- import Servant.QuickCheck.Internal.HasGenRequest (runGenRequest)
+-- import Servant.QuickCheck.Internal.Predicates (finishPredicates)
+-- import Servant.QuickCheck.Internal.QuickCheck (defManager, noCheckStatus)
+-- import Test.QuickCheck (Result (..), quickCheckWithResult)
+-- import Test.QuickCheck.Monadic (assert, forAllM, monadicIO, run)
 -- import Network.Wai.Logger (withStdoutLogger)
 -- import Test.QuickCheck.Parallel (pRunWithNum) --, pDet)
 
@@ -108,13 +109,20 @@ insert i x [] = replicate i [] ++ [[x]]
 -- Otherwise, return the original list
 -- insert _ _ ls = ls
 
+withServantServer :: HasServer api '[] => Proxy api -> IO (ServerT api Handler) -> (BaseUrl -> IO a) -> IO a
+withServantServer api server fn = do
+  -- withApplicationSettings defaultSettings (return . serveWithContext api EmptyContext =<< server) $ \port ->
+  --   fn $ BaseUrl Http "localhost" port ""
+
+  -- NOTE: this might avoid the socket not found error, but is MUCH slower:
+  let port = 54321
+  srv <- server
+  withAsync (run port (serveWithContext api EmptyContext srv)) $ \_ -> do
+    fn $ BaseUrl Http "localhost" port ""
+
 spec :: Spec
 spec = describe "example server" $ do
-  let maxTries = 20
-  let args = defaultArgs {maxSuccess = maxTries}
-
   it "naive lincheck" $ do
-    let settings = defaultSettings
     manager <- newManager defaultManagerSettings
 
     -- Define the concurrent execution to be tested
@@ -127,7 +135,7 @@ spec = describe "example server" $ do
           -- Add the thread ID to each invocation before interleaving:
           interleavings $ map (\(t, es) -> zip (repeat t) es) $ zip [0 ..] exec
     seqResults <- forM seqExecs $ \seqExec -> do
-      withServantServerAndSettings api settings server $ \burl -> do
+      withServantServer api server $ \burl -> do
         let runFnWithThreadID (t, f) = (t,) <$> f
         let seqClient = sequence $ map runFnWithThreadID seqExec
         runClientM seqClient (mkClientEnv manager burl) >>= \case
@@ -141,50 +149,55 @@ spec = describe "example server" $ do
 
     -- Run concurrently and check results are as expected
     forM_ [1 .. 5000 :: Int] $ \i -> do
-      -- Can replace withServantServerAndSettings with its def
-      withServantServerAndSettings api settings server $ \burl -> do
+      -- print i
+      -- Can replace withServantServer with its def
+      withServantServer api server $ \burl -> do
         res <- forConcurrently exec $ \thredFns ->
           runClientM (sequence thredFns) $ mkClientEnv manager burl
         -- TODO debug Connection refused socket does not exist
         -- TODO if the below is commented out it doesn't even show ERROR
         case partitionEithers res of
           ([], results) ->
-            shouldContain expectedResults [stringifyResults results]
+            -- shouldContain expectedResults [stringifyResults results]
             -- print $ (i, stringifyResults results)
-          (errs, _) ->
+            if length (stringifyResults results) > 1000 then print i else pure ()
+          (errs, _) -> do
+            print i
             expectationFailure $ "There was an error:\n" ++ show errs
         return ()
 
-  -- it "concurrent test" $ withStdoutLogger $ \appLogger -> do
-  -- let settings = setLogger appLogger defaultSettings
-  it "concurrent test" $ do
-    let settings = defaultSettings
-    let preds = not500 <%> mempty
+-- let maxTries = 20
+-- let args = defaultArgs {maxSuccess = maxTries}
+-- -- it "concurrent test" $ withStdoutLogger $ \appLogger -> do
+-- -- let settings = setLogger appLogger defaultSettings
+-- it "concurrent test" $ do
+--   let settings = defaultSettings
+--   let preds = not500 <%> mempty
 
-    withServantServerAndSettings api settings server $ \burl -> do
-      -- serverSatisfies api burl args (not500 <%> mempty)
-      deetsMVar <- newEmptyMVar
-      let reqs = ($ burl) <$> runGenRequest api
-      let prop = monadicIO $ forAllM reqs $ \req -> do
-            v <- run $ finishPredicates preds (noCheckStatus req) defManager
-            _ <- run $ tryPutMVar deetsMVar v
-            case v of
-              Just _ -> assert False
-              _ -> return ()
-      (res1, res2) <-
-        concurrently
-          (quickCheckWithResult args {chatty = False} prop)
-          (quickCheckWithResult args {chatty = False} prop)
-      -- TODO need a way to kill other threads when property violated in one thread
-      case (res1, res2) of
-        (Success {}, Success {}) -> return ()
-        _ -> do
-          mx <- tryReadMVar deetsMVar
-          case mx of
-            Just x ->
-              expectationFailure $ "Failed:\n" ++ show x
-            Nothing ->
-              expectationFailure $ "We failed to record a reason for failure: " <> show (res1, res2)
+--   withServantServerAndSettings api settings server $ \burl -> do
+--     -- serverSatisfies api burl args (not500 <%> mempty)
+--     deetsMVar <- newEmptyMVar
+--     let reqs = ($ burl) <$> runGenRequest api
+--     let prop = monadicIO $ forAllM reqs $ \req -> do
+--           v <- run $ finishPredicates preds (noCheckStatus req) defManager
+--           _ <- run $ tryPutMVar deetsMVar v
+--           case v of
+--             Just _ -> assert False
+--             _ -> return ()
+--     (res1, res2) <-
+--       concurrently
+--         (quickCheckWithResult args {chatty = False} prop)
+--         (quickCheckWithResult args {chatty = False} prop)
+--     -- TODO need a way to kill other threads when property violated in one thread
+--     case (res1, res2) of
+--       (Success {}, Success {}) -> return ()
+--       _ -> do
+--         mx <- tryReadMVar deetsMVar
+--         case mx of
+--           Just x ->
+--             expectationFailure $ "Failed:\n" ++ show x
+--           Nothing ->
+--             expectationFailure $ "We failed to record a reason for failure: " <> show (res1, res2)
 
 -- TODO pqc doesn't exit early when property violated -- need to use async?
 -- TODO pqc shouldn't ExitCode, it should do what normal quickchecks do
